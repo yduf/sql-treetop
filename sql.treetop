@@ -61,7 +61,7 @@ grammar SQL
     end
 
     rule table_or_query_name
-        table_name # | <query name>
+        table_name 1..1 <SQL::TableName> # | <query name>
     end
 
     rule table_name # <=> <local or schema qualified name> 
@@ -118,7 +118,7 @@ grammar SQL
 
     rule nonparenthesized_value_expression_primary
     # <unsigned value specification>
-         column_reference
+         column_reference 1..1 <SQL::ColumnReference>
     # |     <set function specification>
     # |     <window function>
     # |     <scalar subquery>
@@ -154,7 +154,7 @@ grammar SQL
     end
 
     rule regular_identifier  # <=> <identifier body>
-        symbolchar+ !symbolchar s # <Identifier>
+        symbolchar+ !symbolchar s 
     end
 
     # keywords
@@ -211,7 +211,7 @@ grammar SQL
 
     # space & comments
     rule s # Optional space
-        S?                 
+        (S / c_comment)*
     end
 
     rule S  # Mandatory space

@@ -1,10 +1,52 @@
 require 'treetop'
 
+# extend all node with method and default behavior
+class Treetop::Runtime::SyntaxNode
+    def ast()
+        if elements
+            elements.map { |e| e.ast() }
+        else
+            nil
+        end
+    end
+
+    def as_sql
+        if elements
+            elements.map { |e| e.as_sql }.join
+        else
+            text_value
+        end
+    end
+end
+
 
 module SQL
     module Select
+    end
+
+    class TableName < Treetop::Runtime::SyntaxNode
         def ast()
-            []
+            [ "#{self.class}:#{text_value.strip}" ]
+        end
+
+        def as_sql()
+            "my.table "
+        end
+    end
+
+    class ColumnReference < Treetop::Runtime::SyntaxNode
+        def ast()
+            [ "#{self.class}:#{text_value.strip}" ]
+        end
+
+        def as_sql()
+            "my.column "
+        end
+    end
+
+    class Identifier < Treetop::Runtime::SyntaxNode
+        def ast()
+            [ "#{self.class}:#{text_value.strip}" ]
         end
     end
 end

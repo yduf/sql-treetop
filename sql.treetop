@@ -32,7 +32,7 @@ grammar SQL
     
     rule table_expression
         from_clause
-    # [ <where clause> ]
+        where_clause?
     # [ <group by clause> ]
     # [ <having clause> ]
     # [ <window clause> ] 
@@ -40,6 +40,10 @@ grammar SQL
 
     rule from_clause
         FROM table_reference_list
+    end
+
+    rule where_clause
+        WHERE search_condition
     end
 
     rule table_reference_list
@@ -72,12 +76,84 @@ grammar SQL
         identifier  # <schema name> | MODULE 
     end
 
+    # where
+    rule search_condition
+        boolean_value_expression
+    end
+
     ###
     # expression
     rule value_expression
             common_value_expression
         #/   boolean_value_expression
         #/   row_value_expression
+    end
+
+    rule boolean_value_expression
+        boolean_term OR boolean_value_expression    # inverted LL
+        / boolean_term
+    end
+
+    rule boolean_term
+        boolean_factor AND boolean_term             # inverted LL
+        / boolean_factor
+    end
+
+    rule boolean_factor
+        NOT? boolean_test
+    end
+
+    rule boolean_test
+        boolean_primary (IS NOT? truth_value)?
+    end
+
+    rule boolean_primary
+          predicate
+        / boolean_predicand
+    end
+
+    rule boolean_predicand
+          parenthesized_boolean_value_expression
+        / nonparenthesized_value_expression_primary
+    end        
+
+    rule parenthesized_boolean_value_expression
+        left_paren boolean_value_expression right_paren
+    end
+
+    rule predicate
+        comparison_predicate
+    # |     <between predicate>
+    # |     <in predicate>
+    # |     <like predicate>
+    # |     <similar predicate>
+    # |     <null predicate>
+    # |     <quantified comparison predicate>
+    # |     <exists predicate>
+    # |     <unique predicate>
+    # |     <normalized predicate>
+    # |     <match predicate>
+    # |     <overlaps predicate>
+    # |     <distinct predicate>
+    # |     <member predicate>
+    # |     <submultiset predicate>
+    # |     <set predicate>
+    # |     <type predicate>
+    end   
+
+    rule comparison_predicate
+        row_value_predicand comp_op row_value_predicand
+    end
+
+    rule row_value_predicand
+           nonparenthesized_value_expression_primary
+        /  row_value_constructor_predicand
+    end
+
+    rule row_value_constructor_predicand
+        common_value_expression
+    /   boolean_predicand
+    #|     <explicit_row_value_constructor>      
     end
 
     rule common_value_expression
@@ -158,6 +234,21 @@ grammar SQL
     end
 
     # keywords
+    rule comp_op
+          '=' s
+        / '<>' s
+        / '<=' s
+        / '>=' s
+        / '<' s
+        / '>' s
+    end
+
+    rule truth_value
+          'true'i kw
+        / 'false'i kw
+        / 'unknown'i kw
+    end
+
     rule sign
           '+' s
         / '-' s
@@ -193,11 +284,32 @@ grammar SQL
     end
 
     rule AS
-        'AS'i kw
+        'as'i kw
     end
+
+    rule IS
+        'is'i kw
+    end
+
+    rule NOT
+    'not'i kw
+    end
+
+    rule OR
+    'or'i kw
+    end
+
+    rule AND
+    'and'i kw
+    end
+
 
     rule FROM
         'from'i kw
+    end
+
+    rule WHERE
+        'where'i kw
     end
 
     # keyword end

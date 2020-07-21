@@ -11,6 +11,8 @@ select * from UND_POOL_ASSET_RANK where FLAG_FULLY_COVERED is null or FLAG_FULLY
 select * from SWAP where cash_margin is null or cash_margin = 0 or margin_types <> 'O'
 select * from SWAP where pay_discount_curve_name is null or pay_currency = pack_currency.get_curve_currency(pay_discount_curve_name)
 select * from SWAP where exists(select 1 from dual)
+select * from SWAP where :new.contract_type in ('A','b')
+select * from SWAP where :new.contract_type in (select ct_code_user from contract_types where contract_category=:table_name)
 _
 
 
@@ -41,7 +43,8 @@ input.each { |k,v|
         next if source.nil?
 
         begin
-            ast = Parser.parse("select * from #{k} where #{source}")
+            #ast = Parser.parse("select * from #{k} where #{source}")
+            ast = Parser.parse("select (#{source}) as valid from #{k}")
             if ast.nil?
                 puts "ERROR on rule #{count}"
                 xcount += 1

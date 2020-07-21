@@ -21,20 +21,29 @@ end
 
 
 module SQL
+    # custom Node for cutting parsing tree
+    class CutTree < Treetop::Runtime::SyntaxNode
+        def initialize( input, interval, elements = nil)
+            super( input, interval, nil)
+        end
+    end
+    
     module Select
     end
 
-    class TableName < Treetop::Runtime::SyntaxNode
+
+    class TableName < CutTree
         def ast()
-            [ "#{self.class}:#{text_value.strip}" ]
+            @name = input.parser.table
+            [ "#{@real_elements} #{self.class}:#{text_value.strip}" ]
         end
 
         def as_sql()
-            "my.table "
+            "my.table (#{@name})"
         end
     end
 
-    class ColumnReference < Treetop::Runtime::SyntaxNode
+    class ColumnReference < CutTree
         def ast()
             [ "#{self.class}:#{text_value.strip}" ]
         end
@@ -44,11 +53,16 @@ module SQL
         end
     end
 
-    class Identifier < Treetop::Runtime::SyntaxNode
+    class Identifier < CutTree
         def ast()
             [ "#{self.class}:#{text_value.strip}" ]
         end
     end
+
+    # 
+    class KW < CutTree
+    end
+
 end
 
 # Find out what our base path is
@@ -72,6 +86,12 @@ class Parser
 
     Treetop.load( File.join(@@base_path, 'sql.treetop'))
     @@parser = SQLParser.new
+
+    @@table = "loandepo"
+    def self.table
+        @@table
+    end
+    
 
     def self.parse(input, options = {})
         parser = @@parser

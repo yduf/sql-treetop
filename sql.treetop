@@ -199,9 +199,8 @@ grammar SQL
     end
 
     rule in_predicate_value
-    #     <table subquery>
-    # /
-        left_paren in_value_list right_paren      
+       subquery
+     / left_paren in_value_list right_paren      
     end
 
     rule in_value_list
@@ -355,7 +354,10 @@ grammar SQL
 
     rule identifier # <=> <actual identifier> 
                     # <=> <qualified identifier> 
-        regular_identifier # | <delimited identifier>
+        (regular_identifier 
+        # | <delimited identifier>
+        ) 1..1
+        <SQL::Identifier>
     end
 
     rule regular_identifier  # <=> <identifier body>
@@ -417,47 +419,47 @@ grammar SQL
     end
 
     rule SELECT
-        'select'i kw
+        'select'i kw                       <KW>
     end
     
     rule FROM
-        'from'i kw
+        'from'i kw                         <KW>
     end
 
     rule WHERE
-        'where'i kw
+        'where'i kw                        <KW>
     end
 
     rule AS
-        'as'i kw
+        'as'i kw                           <KW>
     end
 
     rule IS
-        'is'i kw
+        'is'i kw                           <KW>
     end
 
     rule IN
-        'in'i kw
+        'in'i kw                           <KW>
     end
 
     rule NULL
-        'null'i kw
+        'null'i kw                         <KW>
     end 
 
     rule NOT
-        'not'i kw
+        'not'i kw                          <KW>
     end 
 
     rule OR
-        'or'i kw
+        'or'i kw                           <KW>
     end
 
     rule AND
-        'and'i kw
+        'and'i kw                          <KW>
     end
 
     rule EXISTS
-        'exists'i kw
+        'exists'i kw                       <KW>        
     end
 
     # keyword end

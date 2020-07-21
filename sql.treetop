@@ -1,10 +1,11 @@
 # https://ronsavage.github.io/SQL/sql-2003-2.bnf.html
 grammar SQL
-    rule select_clause  # query_specification
-        head:s 
-        (SELECT set_quantifier? select_list table_expression
-        )
-        <SQL::Select>
+    rule select_clause  
+        head:s query_specification      <SQL::Select>
+    end
+    
+    rule query_specification
+        SELECT set_quantifier? select_list table_expression
     end
 
     rule select_list 
@@ -55,7 +56,7 @@ grammar SQL
     end
 
     rule table_primary
-        table_or_query_name # [ [ AS ] <correlation name> [ <left paren> <derived column list> <right paren> ] ]
+        table_or_query_name ( AS? identifier)? # [ [ AS ] <correlation name> [ <left paren> <derived column list> <right paren> ] ]
     # |     <derived table> [ AS ] <correlation name> [ <left paren> <derived column list> <right paren> ]
     # |     <lateral derived table> [ AS ] <correlation name> [ <left paren> <derived column list> <right paren> ]
     # |     <collection derived table> [ AS ] <correlation name> [ <left paren> <derived column list> <right paren> ]
@@ -65,7 +66,8 @@ grammar SQL
     end
 
     rule table_or_query_name
-        table_name 1..1 <SQL::TableName> # | <query name>
+        table_name 1..1                     <SQL::TableName> 
+        # | <query name>
     end
 
     rule table_name # <=> <local or schema qualified name> 
@@ -73,7 +75,8 @@ grammar SQL
     end
 
     rule local_or_schema_qualifier
-        identifier  # <schema name> | MODULE 
+        identifier  # <schema name>
+        # | MODULE 
     end
 
     # where
@@ -81,12 +84,50 @@ grammar SQL
         boolean_value_expression
     end
 
+    ### 
+    # subquery
+    rule subquery
+        left_paren query_expression  right_paren
+    end
+
+    rule query_expression
+        # [ <with clause> ] 
+        query_expression_body
+    end
+
+    rule query_expression_body
+        non_join_query_expression
+        # | <joined table>
+    end
+
+    rule non_join_query_expression
+        non_join_query_term
+        # |     <query expression body> UNION [ ALL | DISTINCT ] [ <corresponding spec> ] <query term>
+        # |     <query expression body> EXCEPT [ ALL | DISTINCT ] [ <corresponding spec> ] <query term>   
+    end
+
+    rule non_join_query_term
+        non_join_query_primary
+        # |     <query term> INTERSECT [ ALL | DISTINCT ] [ <corresponding spec> ] <query primary>
+    end   
+
+    rule non_join_query_primary
+        simple_table 
+        # | <left paren> <non-join query expression> <right paren>
+    end
+
+    rule simple_table
+        query_specification
+        # |     <table value constructor>
+        # |     <explicit table>   
+    end
+
     ###
     # expression
     rule value_expression
             common_value_expression
-        #/   boolean_value_expression
-        #/   row_value_expression
+        /   boolean_value_expression
+        /   row_value_expression
     end
 
     rule boolean_value_expression
@@ -124,12 +165,12 @@ grammar SQL
     rule predicate
         comparison_predicate
     # |     <between predicate>
-    # |     <in predicate>
+      / in_predicate
     # |     <like predicate>
     # |     <similar predicate>
-    # |     <null predicate>
+      / null_predicate
     # |     <quantified comparison predicate>
-    # |     <exists predicate>
+      / exists_predicate
     # |     <unique predicate>
     # |     <normalized predicate>
     # |     <match predicate>
@@ -143,6 +184,28 @@ grammar SQL
 
     rule comparison_predicate
         row_value_predicand comp_op row_value_predicand
+    end
+
+    rule null_predicate
+        row_value_predicand IS NOT? NULL
+    end
+
+    rule in_predicate
+        row_value_predicand NOT? IN in_predicate_value
+    end
+
+    rule exists_predicate
+        EXISTS subquery 
+    end
+
+    rule in_predicate_value
+    #     <table subquery>
+    # /
+        left_paren in_value_list right_paren      
+    end
+
+    rule in_value_list
+        row_value_expression ( comma row_value_expression)*
     end
 
     rule row_value_predicand
@@ -193,8 +256,9 @@ grammar SQL
     end
 
     rule nonparenthesized_value_expression_primary
-    # <unsigned value specification>
-         column_reference 1..1 <SQL::ColumnReference>
+          unsigned_value_specification
+        / method_invocation                                 # before column to recognize them
+        / column_reference 1..1                     <SQL::ColumnReference>
     # |     <set function specification>
     # |     <window function>
     # |     <scalar subquery>
@@ -202,7 +266,6 @@ grammar SQL
     # |     <cast specification>
     # |     <field reference>
     # |     <subtype treatment>
-    # |     <method invocation>
     # |     <static method invocation>
     # |     <new specification>
     # |     <attribute or method reference>
@@ -218,8 +281,74 @@ grammar SQL
         identifier_chain # <=> basic_identifier_chain
     # |     MODULE <period> <qualified identifier> <period> <column name>        
     end
+    
+    rule method_invocation
+        identifier_chain left_paren SQL_argument_list? right_paren # <direct invocation>
+    # | <generalized invocation>
+    end
+
+    rule SQL_argument_list
+         SQL_argument ( comma SQL_argument )*  
+    end
+
+    rule SQL_argument
+        value_expression
+    # |     <generalized expression>
+    # |     <target specification>        
+    end
+
+    rule row_value_expression
+        nonparenthesized_value_expression_primary   #     <row value special case>
+        # |     <contextually typed row value constructor>    
+    end
+
+    ## Literals
+    rule unsigned_value_specification
+        unsigned_literal 
+        # | <general value specification>
+    end
+
+    rule unsigned_literal
+          unsigned_numeric_literal 
+        / general_literal
+    end
+
+    rule unsigned_numeric_literal
+        exact_numeric_literal 
+        #| <approximate numeric literal>
+    end
+
+    rule exact_numeric_literal
+        unsigned_integer ( period unsigned_integer? )? S
+    /   period unsigned_integer S
+    end       
+
+    rule unsigned_integer
+        [0..9]+
+    end
+
+    rule general_literal
+        character_string_literal
+    # |     <national character string literal>
+    # |     <Unicode character string literal>
+    # |     <binary string literal>
+    # |     <datetime literal>
+    # |     <interval literal>
+    # |     <boolean literal>
+    end
+
+    rule character_string_literal
+    # [ <introducer> <character set specification> ]
+    # <quote> [ <character representation> ... ] <quote>
+    # [ { <separator> <quote> [ <character representation> ... ] <quote> }... ]
+        "'" ("''" / !"'" .)* "'" s
+    end
 
     ## Identifiers
+    rule method_name
+        identifier
+    end
+
     rule identifier_chain
         identifier (period identifier)?
     end
@@ -230,12 +359,13 @@ grammar SQL
     end
 
     rule regular_identifier  # <=> <identifier body>
-        symbolchar+ !symbolchar s 
+        !keywords ':'? symbolchar+ !symbolchar s 
     end
 
     # keywords
     rule comp_op
           '=' s
+        / '!=' s
         / '<>' s
         / '<=' s
         / '>=' s
@@ -243,28 +373,17 @@ grammar SQL
         / '>' s
     end
 
-    rule truth_value
-          'true'i kw
-        / 'false'i kw
-        / 'unknown'i kw
-    end
-
     rule sign
-          '+' s
-        / '-' s
+        '+' s
+    / '-' s
     end
 
     rule left_paren
-        '(' s
+    '(' s
     end
 
     rule right_paren
-        ')' s
-    end
-
-    rule set_quantifier
-          'distinct'i kw
-        / 'all'i kw
+    ')' s
     end
 
     rule asterisk
@@ -279,8 +398,34 @@ grammar SQL
         '.' s
     end
 
+    rule keywords 
+        SELECT / FROM / WHERE / AS / IS / IN / NULL
+        / NOT / OR / AND 
+        / EXISTS
+        / truth_value / set_quantifier
+    end
+
+    rule truth_value
+          'true'i kw
+        / 'false'i kw
+        / 'unknown'i kw
+    end
+
+    rule set_quantifier
+          'distinct'i kw
+        / 'all'i kw
+    end
+
     rule SELECT
         'select'i kw
+    end
+    
+    rule FROM
+        'from'i kw
+    end
+
+    rule WHERE
+        'where'i kw
     end
 
     rule AS
@@ -291,25 +436,28 @@ grammar SQL
         'is'i kw
     end
 
-    rule NOT
-    'not'i kw
+    rule IN
+        'in'i kw
     end
 
+    rule NULL
+        'null'i kw
+    end 
+
+    rule NOT
+        'not'i kw
+    end 
+
     rule OR
-    'or'i kw
+        'or'i kw
     end
 
     rule AND
-    'and'i kw
+        'and'i kw
     end
 
-
-    rule FROM
-        'from'i kw
-    end
-
-    rule WHERE
-        'where'i kw
+    rule EXISTS
+        'exists'i kw
     end
 
     # keyword end
@@ -327,7 +475,7 @@ grammar SQL
     end
 
     rule S  # Mandatory space
-        [ \t]+
+        [ \t\n]+
     end
 
     rule c_comment
